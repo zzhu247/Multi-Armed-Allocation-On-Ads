@@ -1,7 +1,7 @@
 
-# 🧠 Loblaw Budget Optimizer
+# 🧠  Budget Optimizer
 
-Welcome to **Loblaw Budget Optimizer** — a collaborative, cloud-ready machine learning pipeline that recommends weekly ad budget allocations across 8 digital channels.
+Welcome to ** Budget Optimizer** — a collaborative, cloud-ready machine learning pipeline that recommends weekly ad budget allocations across 8 digital channels.
 
 Built with ❤️ using PyTorch, Transformers, and a touch of S3 magic.
 
@@ -136,13 +136,6 @@ This project was built with collaboration in mind:
 - Reproducible training + inference
 - Notebook optional, but encouraged 🎓
 
----
-
-## 🧊 Cool Bonus Ideas (Optional)
-
-- Add a forecasting module for spend/revenue per allocation
-- Plug into Streamlit or Flask for live demo
-- Visualize pacing trends in QuickSight
 
 ---
 
