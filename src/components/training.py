@@ -6,6 +6,8 @@ import mlflow
 import mlflow.pytorch
 import sys
 import os
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
@@ -15,6 +17,26 @@ from dataloader import CampaignDataset
 from trans_encoder import TransformerEncoder
 from model import Predictor, Allocator
 
+# Step 1: Load from Delta Lake
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.getOrCreate()
+df = spark.read.table("criteo_budget_allocation").toPandas()
+
+# Step 2: Clean and normalize
+df = df.dropna()
+
+roas_cols = [c for c in df.columns if c.endswith("_ROAS")]
+roas_cols.append("roas")
+df[roas_cols] = MinMaxScaler().fit_transform(df[roas_cols])
+
+scale_cols = [c for c in df.columns if c.endswith("_clicks") or c.endswith("_impressions")]
+df[scale_cols] = MinMaxScaler().fit_transform(df[scale_cols])
+
+normalized_path = "/tmp/criteo_normalized.csv"
+df.to_csv(normalized_path, index=False)
+config["csv_data_path"] = normalized_path
+
+# Step 3: Train with MLflow
 mlflow.set_experiment("/Users/zzhuliz@outlook.com/budget-allocation-transformer")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,7 +44,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset = CampaignDataset(config["csv_data_path"], config)
 dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
 
-with mlflow.start_run(run_name="transformer-v1"):
+with mlflow.start_run(run_name="criteo-v1"):
 
     mlflow.log_params({
         "hidden_dim": config["hidden_dim"],
@@ -33,6 +55,7 @@ with mlflow.start_run(run_name="transformer-v1"):
         "lr": config["lr"],
         "num_epochs": config["num_epochs"],
         "seq_len": config["seq_len"],
+        "dataset": "criteo_normalized"
     })
 
     encoder = TransformerEncoder(
@@ -97,4 +120,4 @@ with mlflow.start_run(run_name="transformer-v1"):
     mlflow.pytorch.log_model(predictor, "predictor")
     mlflow.pytorch.log_model(allocator, "allocator")
 
-    print("MLflow run complete!")
+    print("Training complete!")
