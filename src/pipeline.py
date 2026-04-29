@@ -1,8 +1,24 @@
+from pyclbr import Class
+
 import torch
 import numpy as np
 from orchestration.config.config import config
 from components.trans_encoder import TransformerEncoder
 from components.model import Allocator
+
+class Normalizer:
+    def __init__(self):
+        pass
+    
+    def normalize(self, input_tensor):
+        if input_tensor.dim() == 0 or input_tensor.numel() == 0:
+            return input_tensor
+        else:
+            sum_tensor = torch.sum(input_tensor, dim= input_tensor.dim() - 1, keepdim=True)
+
+            if sum_tensor.eq(0).any():
+                return input_tensor
+            return input_tensor / sum_tensor
 
 class InferencePipeline:
     def __init__(self):
@@ -23,6 +39,7 @@ class InferencePipeline:
 
         # Load allocator
         self.allocator = Allocator(hidden_dim, alloc_dim=num_channels)
+        self.normalizer = Normalizer()
         self.allocator.load_state_dict(torch.load(config["model_save_path"].replace(".pt", "_allocator.pt"), map_location="cpu"))
         self.allocator.eval()
 
@@ -62,6 +79,10 @@ class InferencePipeline:
         with torch.no_grad():
             h = self.encoder(input_tensor)  # (1, hidden_dim)
             alloc_vector = self.allocator(h)  # (1, 8)
+            # self.normalizer = Normalizer()
+            alloc_vector = self.normalizer.normalize(alloc_vector)  # (1, 8)
 
         alloc_vector = alloc_vector.squeeze(0).tolist()
         return {channel: round(percent, 2) for channel, percent in zip(self.output_channels, alloc_vector)}
+    
+
